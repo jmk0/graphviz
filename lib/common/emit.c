@@ -3529,6 +3529,7 @@ static void emit_page(GVJ_t * job, graph_t * g)
 	gvrender_begin_anchor(job, obj->url, obj->tooltip, obj->target, obj->id);
     }
     /* if (numPhysicalLayers(job) == 1) */
+    if (mapBool(agget(g->root, "svgstyles"), TRUE))
 	emit_background(job, g);
     if (GD_label(g))
 	emit_label(job, EMIT_GLABEL, GD_label(g));

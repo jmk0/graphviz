@@ -116,6 +116,10 @@ static void svg_grstyle(GVJ_t * job, int filled, int gid)
 {
     obj_state_t *obj = job->obj;
 
+       /* job->gvc->g should be the root graph */
+    if (!mapBool(agget(job->gvc->g, "svgstyles"), TRUE))
+       return;
+
     gvputs(job, " fill=\"");
     if (filled == GRADIENT) {
 	gvprintf(job, "url(#l_%d)", gid);
@@ -378,94 +382,100 @@ static void svg_textspan(GVJ_t * job, pointf p, textspan_t * span)
     unsigned int flags;
 
     gvputs(job, "<text");
-    switch (span->just) {
-    case 'l':
-	gvputs(job, " text-anchor=\"start\"");
-	break;
-    case 'r':
-	gvputs(job, " text-anchor=\"end\"");
-	break;
-    default:
-    case 'n':
-	gvputs(job, " text-anchor=\"middle\"");
-	break;
+    if (mapBool(agget(job->gvc->g, "svgstyles"), TRUE))
+    {
+       switch (span->just) {
+          case 'l':
+             gvputs(job, " text-anchor=\"start\"");
+             break;
+          case 'r':
+             gvputs(job, " text-anchor=\"end\"");
+             break;
+          default:
+          case 'n':
+             gvputs(job, " text-anchor=\"middle\"");
+             break;
+       }
     }
     p.y += span->yoffset_centerline;
     if (!obj->labeledgealigned)
 	gvprintf(job, " x=\"%g\" y=\"%g\"", p.x, -p.y);
-    pA = span->font->postscript_alias;
-    if (pA) {
-	switch (GD_fontnames(job->gvc->g)) {
-	case PSFONTS:
-	    family = pA->name;
-	    weight = pA->weight;
-	    style = pA->style;
-	    break;
-	case SVGFONTS:
-	    family = pA->svg_font_family;
-	    weight = pA->svg_font_weight;
-	    style = pA->svg_font_style;
-	    break;
-	default:
-	case NATIVEFONTS:
-	    family = pA->family;
-	    weight = pA->weight;
-	    style = pA->style;
-	    break;
-	}
-	stretch = pA->stretch;
+    if (mapBool(agget(job->gvc->g, "svgstyles"), TRUE))
+    {
+       pA = span->font->postscript_alias;
+       if (pA) {
+          switch (GD_fontnames(job->gvc->g)) {
+             case PSFONTS:
+                family = pA->name;
+                weight = pA->weight;
+                style = pA->style;
+                break;
+             case SVGFONTS:
+                family = pA->svg_font_family;
+                weight = pA->svg_font_weight;
+                style = pA->svg_font_style;
+                break;
+             default:
+             case NATIVEFONTS:
+                family = pA->family;
+                weight = pA->weight;
+                style = pA->style;
+                break;
+          }
+          stretch = pA->stretch;
 
-	gvprintf(job, " font-family=\"%s", family);
-	if (pA->svg_font_family)
-	    gvprintf(job, ",%s", pA->svg_font_family);
-	gvputs(job, "\"");
-	if (weight)
-	    gvprintf(job, " font-weight=\"%s\"", weight);
-	if (stretch)
-	    gvprintf(job, " font-stretch=\"%s\"", stretch);
-	if (style)
-	    gvprintf(job, " font-style=\"%s\"", style);
-    } else
-	gvprintf(job, " font-family=\"%s\"", span->font->name);
-    if ((span->font) && (flags = span->font->flags)) {
-	if ((flags & HTML_BF) && !weight)
-	    gvprintf(job, " font-weight=\"bold\"");
-	if ((flags & HTML_IF) && !style)
-	    gvprintf(job, " font-style=\"italic\"");
-	if ((flags & (HTML_UL|HTML_S|HTML_OL))) {
-	    int comma = 0;
-	    gvprintf(job, " text-decoration=\"");
-	    if ((flags & HTML_UL)) {
+          gvprintf(job, " font-family=\"%s", family);
+          if (pA->svg_font_family)
+             gvprintf(job, ",%s", pA->svg_font_family);
+          gvputs(job, "\"");
+          if (weight)
+             gvprintf(job, " font-weight=\"%s\"", weight);
+          if (stretch)
+             gvprintf(job, " font-stretch=\"%s\"", stretch);
+          if (style)
+             gvprintf(job, " font-style=\"%s\"", style);
+       } else
+          gvprintf(job, " font-family=\"%s\"", span->font->name);
+       if ((span->font) && (flags = span->font->flags)) {
+          if ((flags & HTML_BF) && !weight)
+             gvprintf(job, " font-weight=\"bold\"");
+          if ((flags & HTML_IF) && !style)
+             gvprintf(job, " font-style=\"italic\"");
+          if ((flags & (HTML_UL|HTML_S|HTML_OL))) {
+             int comma = 0;
+             gvprintf(job, " text-decoration=\"");
+             if ((flags & HTML_UL)) {
 		gvprintf(job, "underline");
 		comma = 1;
-	    }
-	    if ((flags & HTML_OL)) {
+             }
+             if ((flags & HTML_OL)) {
 		gvprintf(job, "%soverline", (comma?",":""));
 		comma = 1;
-	    }
-	    if ((flags & HTML_S))
+             }
+             if ((flags & HTML_S))
 		gvprintf(job, "%sline-through", (comma?",":""));
-	    gvprintf(job, "\"");
-	}
-	if ((flags & HTML_SUP))
-	    gvprintf(job, " baseline-shift=\"super\"");
-	if ((flags & HTML_SUB))
-	    gvprintf(job, " baseline-shift=\"sub\"");
-    }
+             gvprintf(job, "\"");
+          }
+          if ((flags & HTML_SUP))
+             gvprintf(job, " baseline-shift=\"super\"");
+          if ((flags & HTML_SUB))
+             gvprintf(job, " baseline-shift=\"sub\"");
+       }
 
-    gvprintf(job, " font-size=\"%.2f\"", span->font->size);
-    switch (obj->pencolor.type) {
-    case COLOR_STRING:
-	if (strcasecmp(obj->pencolor.u.string, "black"))
-	    gvprintf(job, " fill=\"%s\"", obj->pencolor.u.string);
-	break;
-    case RGBA_BYTE:
-	gvprintf(job, " fill=\"#%02x%02x%02x\"",
-		 obj->pencolor.u.rgba[0], obj->pencolor.u.rgba[1],
-		 obj->pencolor.u.rgba[2]);
-	break;
-    default:
-	assert(0);		/* internal error */
+       gvprintf(job, " font-size=\"%.2f\"", span->font->size);
+       switch (obj->pencolor.type) {
+          case COLOR_STRING:
+             if (strcasecmp(obj->pencolor.u.string, "black"))
+                gvprintf(job, " fill=\"%s\"", obj->pencolor.u.string);
+             break;
+          case RGBA_BYTE:
+             gvprintf(job, " fill=\"#%02x%02x%02x\"",
+                      obj->pencolor.u.rgba[0], obj->pencolor.u.rgba[1],
+                      obj->pencolor.u.rgba[2]);
+             break;
+          default:
+             assert(0);		/* internal error */
+       }
     }
     gvputs(job, ">");
     if (obj->labeledgealigned) {
